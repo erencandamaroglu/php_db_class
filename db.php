@@ -1,112 +1,203 @@
 <?php 
+/**
+* temel veritabanı işlemlerini kolaylaştıran veritabanı sınıfı
+*/
 class Db extends PDO
 {
+	/**
+	* [$sql veritabanı sorgu cümlesi]
+	* @var [private]
+	*/
 	private $sql;
-	private $array;
-	private $sonEklenenId;
-	private $adet;
+	/**
+	* [$data array halinde işlenecek olan veri]
+	* @var [private]
+	*/
+	private $data;
+	/**
+	* [$son_eklenen_id veritabanına son eklenen kaydın id değeri]
+	* @var [private]
+	*/
+	private $son_eklenen_id;
+	/**
+	* [$count listeleme sonucundan dönen kayıt sayısı]
+	* @var [private]
+	*/
+	private $count;
+	/**
+	* [$error pdo sorgularında hata oluşursa oluşan hatayı tutan değişken]
+	* @var [private]
+	*/
 	private $error;
-	function __construct($sunucu,$veritabani,$kullanici,$sifre,$charset="utf8")
+	/**
+	* [__construct pdo üzerinden veritabanı bağlantısını sağlayan kısım]
+	* @param [string] $host    [sunucu adı]
+	* @param [string] $db      [veritabanı adı]
+	* @param [string] $user    [veritabanı kullanıcı adı]
+	* @param [string] $pass    [veritabanı kullanıcı şifresi]
+	* @param string $charset [veritabanı bağlantı karakter seti]
+	*/
+	function __construct($host,$db,$user,$pass,$charset="utf8")
 	{
-		try{
-			parent::__construct("mysql:host=".$sunucu.";dbname=".$veritabani.";charset=".$charset,$kullanici,$sifre);
-			// parent::exec("SET NAMES utf8");
-			// parent::exec("SET CHARSET utf8");
-		}catch( Exception $hata ){
-			die("Bağlantı Hatası Oluştu..!");
+		try {
+			/**
+			* veritabanı bağlantısını sağla
+			*/
+			parent::__construct("mysql:host={$host};dbname={$db};charset={$charset}",$user,$pass);
+			parent::setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+		} catch (PDOException $e) {
+			/**
+			* oluşan hatayı ekrana bas
+			*/
+			die("<p style='background:red;padding:8px 20px;'><strong style='color:white;'>Bağlantı Hatası..</strong></p>");
 		}
 	}
-	public function select($param="")
+	/**
+	* [query kullanıcıdan sql sorgusu alır]
+	* @param  [string] $sql [sorgu cumlesi]
+	* @return [function]      [zincirleme metod kullanımı için ]
+	*/
+	public function query($sql)
 	{
-		if (trim($param)==1) {
-			$sorgu = parent::prepare($this->sql);
-			$sorgu->execute($this->array);
-			if ($sorgu->rowCount()>0) {
-				$this->adet = $sorgu->rowCount();
-				return $sorgu->fetch(PDO::FETCH_ASSOC);
-			}else{
-				$this->adet = 0;
-				return false;
-			}
-		}else{
-			$sorgu = parent::prepare($this->sql);
-			$sorgu->execute($this->array);
-			if ($sorgu->rowCount()>0) {
-				$this->adet = $sorgu->rowCount();
-				return $sorgu->fetchAll(PDO::FETCH_ASSOC);
-			}else{
-				$this->adet = 0;
-				return false;
-			}
-		}
-	}
-	public function query($query)
-	{
-		$this->sql=$query;
+		$this->sql = $sql;
 		return $this;
 	}
-	public function data($data)
+	/**
+	* [data kullanıcıdan alınan  veri]
+	* @param  [array] $array [dizi verisi]
+	* @return [function]      [zincirleme metod kullanımı için ]
+	*/
+	public function data($array)
 	{
-		$this->array=$data;
+		$this->data = $array;
 		return $this;
 	}
+	/**
+	* [insert ekleme işlemi]
+	* @return [boolen] []
+	*/
 	public function insert()
 	{
 		try{
-			$sorgu = parent::prepare($this->sql);
-			$sorgu->execute($this->array);
-			$this->sonEklenenId=parent::lastInsertId();
-			if ( $this->sonEklenenId>0) {
+			$sorgu = parent::prepare( $this->sql );
+			$sorgu->execute( $this->data );
+			/**
+			* [$this->son_eklenen_id son eklenen kaydın ıd değeri]
+			* @var [integer]
+			*/
+			$this->son_eklenen_id = parent::lastInsertId();
+			if ($this->son_eklenen_id>0) {
 				return true;
 			}else{
 				return false;
 			}
-		}catch( Exception $hata){
-			$this->error=$hata;
+		}catch(PDOException $e){
+			$this->error=$e->getMessage();
+			return false;
+		}
+	}
+	/**
+	* [select seçme işlemi]
+	* @param  integer/null $value [1 ise tek kayıt değil ise birden fazla kayıt döndürür.]
+	* @return [data/false]        []
+	*/
+	public function select($value="")
+	{
+		try {
+			if (trim($value)==1) {
+				$sorgu=parent::prepare( $this->sql );
+				$sorgu->execute( $this->data );
+				/**
+				* [$donen_kayit_adedi sorgu sonucundan etilenen satır sayısı]
+				* @var [integer]
+				*/
+				$donen_kayit_adedi = $sorgu->rowCount();
+				if ( $donen_kayit_adedi>0) {
+					$this->count=$donen_kayit_adedi;
+					return $sorgu->fetch(PDO::FETCH_ASSOC);
+				}else{
+					return false;
+				}
+			}else{
+				$sorgu=parent::prepare( $this->sql );
+				$sorgu->execute( $this->data );
+				/**
+				* [$donen_kayit_adedi sorgu sonucundan etilenen satır sayısı]
+				* @var [integer]
+				*/
+				$donen_kayit_adedi = $sorgu->rowCount();
+				if ( $donen_kayit_adedi>0) {
+					$this->count=$donen_kayit_adedi;
+					return $sorgu->fetchAll(PDO::FETCH_ASSOC);
+				}else{
+					return false;
+				}
+			}
+		} catch (Exception $e) {
+			$this->error=$e->getMessage();
 			return false;
 		}
 	}
 	public function update()
 	{
 		try{
-			$sorgu = parent::prepare($this->sql);
-			$sorgu->execute($this->array);
-			if ( $sorgu->rowCount()) {
+			$sorgu = parent::prepare( $this->sql );
+			$sorgu->execute( $this->data );
+			/**
+			* sorgu sonucundan etilenen satır sayısı var ise
+			*/
+			if ($sorgu->rowCount()) {
 				return true;
 			}else{
-				$this->error=parent::errorInfo();
 				return false;
 			}
-		}catch( Exception $hata){
-			$this->error=$hata;
+		}catch(PDOException $e){
+			$this->error=$e->getMessage();
 			return false;
 		}
 	}
 	public function delete()
 	{
 		try{
-			$sorgu = parent::prepare($this->sql);
-			$sorgu->execute($this->array);
-			if ( $sorgu->rowCount()) {
+			$sorgu = parent::prepare( $this->sql );
+			$sorgu->execute( $this->data );
+			/**
+			* sorgu sonucundan etilenen satır sayısı var ise
+			*/
+			if ($sorgu->rowCount()) {
 				return true;
 			}else{
 				return false;
 			}
-		}catch( Exception $hata){
-			$this->error=$hata;
+		}catch(PDOException $e){
+			$this->error=$e->getMessage();
 			return false;
 		}
 	}
-	public function count()
-	{
-		return $this->adet;
-	}
-	public function last_insert_id()
-	{
-		return $this->sonEklenenId;
-	}
-	public function error()
+	/**
+	* [getError sorguda oluşan hata]
+	* @return [string] [hata]
+	*/
+	public function getError()
 	{
 		return $this->error;
 	}
+	/**
+	* [getCount sorgudan dönen kayıt adedi]
+	* @return [integer] [kayıt adedi]
+	*/
+	public function getCount()
+	{
+		return $this->count;
+	}
+	/**
+	* [last_insert_id son eklenen kaydın id idsi]
+	* @return [integer] [son eklenen kayıt]
+	*/
+	public function last_insert_id()
+	{
+		return $this->son_eklenen_id;
+	}
 }
+
+$db= new Db($server,$dbname,$dbuser,$dbpassword,$charset);
