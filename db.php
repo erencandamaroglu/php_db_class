@@ -114,8 +114,10 @@ class Db extends PDO
 				$donen_kayit_adedi = $sorgu->rowCount();
 				if ( $donen_kayit_adedi>0) {
 					$this->count=$donen_kayit_adedi;
+					$this->data = null;
 					return $sorgu->fetch(PDO::FETCH_ASSOC);
 				}else{
+					$this->data = null;
 					return false;
 				}
 			}else{
@@ -128,8 +130,10 @@ class Db extends PDO
 				$donen_kayit_adedi = $sorgu->rowCount();
 				if ( $donen_kayit_adedi>0) {
 					$this->count=$donen_kayit_adedi;
+					$this->data = null;
 					return $sorgu->fetchAll(PDO::FETCH_ASSOC);
 				}else{
+					$this->data = null;
 					return false;
 				}
 			}
